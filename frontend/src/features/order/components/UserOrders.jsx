@@ -10,6 +10,7 @@ import { loadingAnimation, noOrdersAnimation } from '../../../assets'
 import { toast } from 'react-toastify'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {motion} from 'framer-motion'
+import { formatNPR } from '../../../utils/currency'
 
 
 export const UserOrders = () => {
@@ -120,7 +121,7 @@ export const UserOrders = () => {
 
                                             <Stack>
                                                 <Typography>Total Amount</Typography>
-                                                <Typography>${order.total}</Typography>
+                                                <Typography>{formatNPR(order.total)}</Typography>
                                             </Stack>
                                         </Stack>
 
@@ -149,7 +150,7 @@ export const UserOrders = () => {
                                                                 <Typography variant='body1'  fontSize={'.9rem'}  color={'text.secondary'}>{product.product.brand.name}</Typography>
                                                                 <Typography color={'text.secondary'} fontSize={'.9rem'}>Qty: {product.quantity}</Typography>
                                                             </Stack>
-                                                            <Typography>${product.product.price}</Typography>
+                                                            <Typography>{formatNPR(product.product.price)}</Typography>
                                                         </Stack>
 
                                                         <Typography color={'text.secondary'}>{product.product.description}</Typography>
@@ -174,8 +175,11 @@ export const UserOrders = () => {
                                     </Stack>
 
                                     {/* lower */}
-                                    <Stack mt={2} flexDirection={'row'} justifyContent={'space-between'}>
-                                        <Typography mb={2}>Status : {order.status}</Typography>
+                                    <Stack mt={2} flexDirection={'row'} justifyContent={'space-between'} flexWrap="wrap" gap={1}>
+                                        <Typography mb={2}>Status : {order.status} • Payment: {order.paymentMode} {order.paymentStatus?`(${order.paymentStatus})`:''}</Typography>
+                                        <Stack direction="row" gap={1}>
+                                            <Button size="small" variant="outlined" component={Link} to={`/invoices/${order.invoice || order._id}`}>View Invoice</Button>
+                                        </Stack>
                                     </Stack>
                                         
                                 </Stack>

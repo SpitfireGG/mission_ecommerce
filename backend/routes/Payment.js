@@ -1,0 +1,11 @@
+const express=require('express')
+const paymentController=require("../controllers/Payment")
+const router=express.Router()
+router.post("/initiate",paymentController.initiate)
+router.post("/esewa/verify",paymentController.verifyEsewa)
+router.post("/khalti/verify",paymentController.verifyKhalti)
+router.get("/",paymentController.getAll)
+router.get("/user/:id",paymentController.getByUserId)
+router.get("/:id",paymentController.getById)
+router.patch("/:id",paymentController.updateStatus)
+module.exports=router

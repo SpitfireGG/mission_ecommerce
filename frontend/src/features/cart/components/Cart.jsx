@@ -4,13 +4,15 @@ import { Button, Chip, Paper, Stack, Typography, useMediaQuery, useTheme } from 
 import { resetCartItemRemoveStatus, selectCartItemRemoveStatus, selectCartItems } from '../CartSlice'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, useNavigate } from 'react-router-dom'
-import { SHIPPING, TAXES } from '../../../constants'
+import { SHIPPING, VAT_RATE } from '../../../constants'
+import { formatNPR } from '../../../utils/currency'
 import { toast } from 'react-toastify'
 import {motion} from 'framer-motion'
 
 export const Cart = ({checkout}) => {
     const items=useSelector(selectCartItems)
     const subtotal=items.reduce((acc,item)=>item.product.price*item.quantity+acc,0)
+    const taxes=Math.round(subtotal*VAT_RATE)
     const totalItems=items.reduce((acc,item)=>acc+item.quantity,0)
     const navigate=useNavigate()
     const theme=useTheme()
@@ -70,24 +72,24 @@ export const Cart = ({checkout}) => {
 
                             <Stack flexDirection={'row'} justifyContent={'space-between'}>
                                 <Typography>Subtotal</Typography>
-                                <Typography>${subtotal}</Typography>
+                                <Typography>{formatNPR(subtotal)}</Typography>
                             </Stack>
 
                             <Stack flexDirection={'row'} justifyContent={'space-between'}>
                                 <Typography>Shipping</Typography>
-                                <Typography>${SHIPPING}</Typography>
+                                <Typography>{formatNPR(SHIPPING)}</Typography>
                             </Stack>
 
                             <Stack flexDirection={'row'} justifyContent={'space-between'}>
-                                <Typography>Taxes</Typography>
-                                <Typography>${TAXES}</Typography> 
+                                <Typography>VAT (13%)</Typography>
+                                <Typography>{formatNPR(taxes)}</Typography> 
                             </Stack>
 
                             <hr/>
 
                             <Stack flexDirection={'row'} justifyContent={'space-between'}>
                                 <Typography>Total</Typography>
-                                <Typography>${subtotal+SHIPPING+TAXES}</Typography>
+                                <Typography>{formatNPR(subtotal+SHIPPING+taxes)}</Typography>
                             </Stack>
                             
 
@@ -101,7 +103,7 @@ export const Cart = ({checkout}) => {
                             </Stack>
 
                             <Stack>
-                                <Typography variant='h6' fontWeight={500}>${subtotal}</Typography>
+                                <Typography variant='h6' fontWeight={500}>{formatNPR(subtotal)}</Typography>
                             </Stack>
                         </>
                     )

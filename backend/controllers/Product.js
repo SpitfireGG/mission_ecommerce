@@ -3,9 +3,27 @@ const Product=require("../models/Product")
 
 exports.create=async(req,res)=>{
     try {
-        const created=new Product(req.body)
+        const data={...req.body}
+        const baseUrl=`${req.protocol}://${req.get('host')}`
+        if(req.files && (req.files['thumbnail']||req.files['images'])){
+            if(req.files['thumbnail'] && req.files['thumbnail'][0]) data.thumbnail=`${baseUrl}/uploads/products/${req.files['thumbnail'][0].filename}`
+            if(req.files['images']){
+                data.images=req.files['images'].map(f=>`${baseUrl}/uploads/products/${f.filename}`)
+                if(data.thumbnail && !data.images.includes(data.thumbnail)) data.images.unshift(data.thumbnail)
+            }
+        } else if(req.files && Array.isArray(req.files) && req.files.length){
+            // generic array fallback
+        }
+        if(typeof data.images==='string') try{data.images=JSON.parse(data.images)}catch{}
+        if(data.price) data.price=Number(data.price)
+        if(data.stockQuantity) data.stockQuantity=Number(data.stockQuantity)
+        if(data.discountPercentage) data.discountPercentage=Number(data.discountPercentage)
+        if(!data.thumbnail && data.images && data.images[0]) data.thumbnail=data.images[0]
+        if(!data.images || !data.images.length) data.images=[data.thumbnail]
+        const created=new Product(data)
         await created.save()
-        res.status(201).json(created)
+        const populated=await Product.findById(created._id).populate('brand').populate('category')
+        res.status(201).json(populated||created)
     } catch (error) {
         console.log(error);
         return res.status(500).json({message:'Error adding product, please trying again later'})
@@ -25,6 +43,11 @@ exports.getAll = async (req, res) => {
 
         if(req.query.category){
             filter.category={$in:req.query.category}
+        }
+
+        if(req.query.search){
+            const r=new RegExp(req.query.search,'i')
+            filter.$or=[{title:r},{description:r}]
         }
 
         if(req.query.user){

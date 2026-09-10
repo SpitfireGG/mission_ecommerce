@@ -9,6 +9,7 @@ import { selectWishlistItems } from '../../wishlist/WishlistSlice';
 import { selectLoggedInUser } from '../../auth/AuthSlice';
 import { addToCartAsync,selectCartItems } from '../../cart/CartSlice';
 import {motion} from 'framer-motion'
+import { formatNPR } from '../../../utils/currency'
 
 export const ProductCard = ({id,title,price,thumbnail,brand,stockQuantity,handleAddRemoveFromWishlist,isWishlistCard,isAdminCard}) => {
 
@@ -71,7 +72,7 @@ export const ProductCard = ({id,title,price,thumbnail,brand,stockQuantity,handle
             </Stack>
 
             <Stack sx={{flexDirection:"row",justifyContent:"space-between",alignItems:"center"}}>
-                <Typography>${price}</Typography>
+                <Typography>{formatNPR(price)}</Typography>
                 {
                     !isWishlistCard? isProductAlreadyInCart?
                     'Added to cart'

@@ -1,0 +1,11 @@
+const express=require('express')
+const invoiceController=require("../controllers/Invoice")
+const router=express.Router()
+router.get("/",invoiceController.getAll)
+router.get("/stats/summary",invoiceController.getStats)
+router.get("/user/:id",invoiceController.getByUserId)
+router.get("/order/:orderId",invoiceController.getByOrderId)
+router.get("/:id",invoiceController.getById)
+router.post("/generate/:orderId",invoiceController.generateForOrder)
+router.patch("/:id",invoiceController.updateById)
+module.exports=router

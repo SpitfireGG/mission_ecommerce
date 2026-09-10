@@ -22,9 +22,17 @@ const orderSchema=new Schema({
     },
     paymentMode:{
         type:String,
-        enum:['COD','UPI','CARD'],
+        enum:['COD','UPI','CARD','ESEWA','KHALTI'],
         required:true
     },
+    paymentStatus:{
+        type:String,
+        enum:['pending','paid','failed','refunded'],
+        default:'pending'
+    },
+    payment:{type:Schema.Types.ObjectId,ref:"Payment"},
+    invoice:{type:Schema.Types.ObjectId,ref:"Invoice"},
+    billingDetails:{type:Schema.Types.Mixed},
     total:{
         type:Number,
         required:true

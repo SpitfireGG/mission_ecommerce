@@ -33,3 +33,5 @@ export {
     WishlistPage,
     OtpVerificationPage
 }
+export {AdminInvoicesPage} from "./AdminInvoicesPage"
+export {InvoiceDetailPage} from "./InvoiceDetailPage"

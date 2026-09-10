@@ -33,9 +33,10 @@ export const Footer = () => {
 
                 <Stack rowGap={'1rem'} padding={'1rem'}>
                     <Typography variant='h6'>Support</Typography>
-                    <Typography sx={labelStyles}>11th Main Street, Dhaka,  DH 1515, California.</Typography>
-                    <Typography sx={labelStyles}>exclusive@gmail.com</Typography>
-                    <Typography sx={labelStyles}>+88015-88888-9999</Typography>
+                    <Typography sx={labelStyles}>New Road, Kathmandu 44600, Nepal</Typography>
+                    <Typography sx={labelStyles}>Thamel, Pokhara & Biratnagar — All Nepal Delivery</Typography>
+                    <Typography sx={labelStyles}>support@missionshop.com.np</Typography>
+                    <Typography sx={labelStyles}>+977 980-1234567 | +977 1-4567890</Typography>
                 </Stack>
 
                 <Stack rowGap={'1rem'} padding={'1rem'}>
@@ -87,8 +88,9 @@ export const Footer = () => {
             </Stack>
 
             {/* lower */}
-            <Stack alignSelf={"center"}>
-                <Typography color={'GrayText'}>&copy; Mern Store {new Date().getFullYear()}. All right reserved</Typography>
+            <Stack alignSelf={"center"} textAlign="center" rowGap={0.5}>
+                <Typography color={'GrayText'}>&copy; Mission Shop {new Date().getFullYear()} — Made in Nepal 🇳🇵 | eSewa & Khalti accepted</Typography>
+                <Typography variant="caption" color={'GrayText'}>Pan No: 123456789 | Kathmandu, Nepal • Cash on Delivery nationwide</Typography>
             </Stack>
 
     </Stack>

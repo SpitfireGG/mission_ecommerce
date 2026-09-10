@@ -13,6 +13,10 @@ const userRoutes=require("./routes/User")
 const addressRoutes=require('./routes/Address')
 const reviewRoutes=require("./routes/Review")
 const wishlistRoutes=require("./routes/Wishlist")
+const paymentRoutes=require("./routes/Payment")
+const invoiceRoutes=require("./routes/Invoice")
+const adminRoutes=require("./routes/Admin")
+const path=require('path')
 const { connectToDB } = require("./database/db")
 
 
@@ -23,11 +27,14 @@ const server=express()
 connectToDB()
 
 
+const allowedOrigins=[process.env.ORIGIN,process.env.ADMIN_ORIGIN,"http://localhost:3000","http://localhost:3001"].filter(Boolean)
 // middlewares
-server.use(cors({origin:process.env.ORIGIN,credentials:true,exposedHeaders:['X-Total-Count'],methods:['GET','POST','PATCH','DELETE']}))
-server.use(express.json())
+server.use(cors({origin:function(origin,cb){if(!origin || allowedOrigins.includes(origin)) return cb(null,true); return cb(new Error('CORS not allowed by server: '+origin))},credentials:true,exposedHeaders:['X-Total-Count'],methods:['GET','POST','PATCH','DELETE','OPTIONS']}))
+server.use(express.json({limit:'10mb'}))
+server.use(express.urlencoded({extended:true,limit:'10mb'}))
 server.use(cookieParser())
 server.use(morgan("tiny"))
+server.use('/uploads',express.static(path.join(__dirname,'uploads')))
 
 // routeMiddleware
 server.use("/auth",authRoutes)
@@ -40,6 +47,9 @@ server.use("/categories",categoryRoutes)
 server.use("/address",addressRoutes)
 server.use("/reviews",reviewRoutes)
 server.use("/wishlist",wishlistRoutes)
+server.use("/payments",paymentRoutes)
+server.use("/invoices",invoiceRoutes)
+server.use("/api/admin",adminRoutes)
 
 
 

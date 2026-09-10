@@ -5,6 +5,7 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import { useDispatch } from 'react-redux';
 import { deleteCartItemByIdAsync, updateCartItemByIdAsync } from '../CartSlice';
 import { Link } from 'react-router-dom';
+import { formatNPR } from '../../../utils/currency'
 
 export const CartItem = ({id,thumbnail,title,category,brand,price,quantity,stockQuantity,productId}) => {
 
@@ -58,7 +59,7 @@ export const CartItem = ({id,thumbnail,title,category,brand,price,quantity,stock
 
         {/* price and remove button */}
         <Stack justifyContent={'space-evenly'} alignSelf={is552?'flex-end':''} height={'100%'} rowGap={'1rem'} alignItems={'flex-end'}>
-            <Typography variant='body2'>${price}</Typography>
+            <Typography variant='body2'>{formatNPR(price)}</Typography>
             <Button size={is480?"small":""} onClick={handleProductRemove} variant='contained'>Remove</Button>
         </Stack>
     </Stack>

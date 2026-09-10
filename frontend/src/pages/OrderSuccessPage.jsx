@@ -40,7 +40,11 @@ export const OrderSuccessPage = () => {
                 <Typography variant='body2' color='text.secondary'>Thankyou for shopping with us❤️</Typography>
             </Stack>
 
-            <Button component={Link} to={'/orders'} onClick={()=>dispatch(resetCurrentOrder())} size={is480?"small":""}  variant='contained'>Check order status in my orders</Button>
+            <Stack direction="row" gap={1} flexWrap="wrap" justifyContent="center">
+                <Button component={Link} to={'/orders'} onClick={()=>dispatch(resetCurrentOrder())} size={is480?"small":""}  variant='contained'>Check order status</Button>
+                <Button component={Link} to={currentOrder?.invoice?`/invoices/${currentOrder.invoice}`:`/invoices/${currentOrder?._id}`} variant='outlined' size={is480?"small":""}>View Invoice & Billing</Button>
+            </Stack>
+            <Typography variant="caption" color="text.secondary">{currentOrder?.paymentMode==='ESEWA'?'eSewa verified ✓':currentOrder?.paymentMode==='KHALTI'?'Khalti verified ✓':currentOrder?.paymentMode==='COD'?'COD — pay on delivery':''} • Invoice auto-generated</Typography>
         </Stack>
 
     </Stack>

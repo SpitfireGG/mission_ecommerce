@@ -22,6 +22,7 @@ import { autoPlay } from 'react-swipeable-views-utils';
 import MobileStepper from '@mui/material/MobileStepper';
 import Lottie from 'lottie-react'
 import {loadingAnimation} from '../../../assets'
+import { formatNPR } from '../../../utils/currency'
 
 
 const SIZES=['XS','S','M','L','XL']
@@ -261,7 +262,7 @@ export const ProductDetails = () => {
                             </Stack>
 
                             {/* price */}
-                            <Typography variant='h5'>${product?.price}</Typography>
+                            <Typography variant='h5'>{formatNPR(product?.price)}</Typography>
                         </Stack>
 
                         {/* description */}
