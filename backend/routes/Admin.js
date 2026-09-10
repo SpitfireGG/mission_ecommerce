@@ -1,8 +1,13 @@
 const express=require('express')
 const c=require('../controllers/Admin')
 const upload=require('../middleware/upload')
+const {requireAdmin}=require('../middleware/RequireAdmin')
 const router=express.Router()
 router.post('/login',c.login)
+
+// Everything below requires an authenticated administrator.
+router.use(requireAdmin)
+
 router.get('/stats',c.stats)
 router.get('/products',c.products)
 router.post('/products',upload.fields([{name:'thumbnail',maxCount:1},{name:'images',maxCount:5}]),c.createProduct)

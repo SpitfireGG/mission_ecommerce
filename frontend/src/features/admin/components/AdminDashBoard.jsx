@@ -193,7 +193,7 @@ export const AdminDashBoard = () => {
                 products.map((product)=>(
                     <Stack>
                         <Stack sx={{opacity:product.isDeleted?.7:1}}>
-                            <ProductCard key={product._id} id={product._id} title={product.title} thumbnail={product.thumbnail} brand={product.brand.name} price={product.price} isAdminCard={true}/>
+                            <ProductCard stockQuantity={product.stockQuantity} discountPercentage={product.discountPercentage} key={product._id} id={product._id} title={product.title} thumbnail={product.thumbnail} brand={product.brand?.name} price={product.price} isAdminCard={true}/>
                         </Stack>
                         <Stack paddingLeft={2} paddingRight={2} flexDirection={'row'} justifySelf={'flex-end'} alignSelf={'flex-end'} columnGap={is488?1:2}>
                             <Button component={Link} to={`/admin/product-update/${product._id}`} variant='contained'>Update</Button>

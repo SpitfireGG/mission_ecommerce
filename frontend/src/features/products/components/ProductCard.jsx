@@ -1,104 +1,186 @@
-import { FormHelperText, Paper, Stack, Typography, useMediaQuery, useTheme} from '@mui/material'
-import React, { useState } from 'react'
+import { Box, Stack, Typography, Tooltip, IconButton } from '@mui/material'
+import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import FavoriteBorder from '@mui/icons-material/FavoriteBorder';
-import Favorite from '@mui/icons-material/Favorite';
-import Checkbox from '@mui/material/Checkbox';
-import { useDispatch, useSelector } from 'react-redux';
-import { selectWishlistItems } from '../../wishlist/WishlistSlice';
-import { selectLoggedInUser } from '../../auth/AuthSlice';
-import { addToCartAsync,selectCartItems } from '../../cart/CartSlice';
-import {motion} from 'framer-motion'
+import FavoriteBorder from '@mui/icons-material/FavoriteBorder'
+import Favorite from '@mui/icons-material/Favorite'
+import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined'
+import CheckIcon from '@mui/icons-material/Check'
+import { useDispatch, useSelector } from 'react-redux'
+import { selectWishlistItems } from '../../wishlist/WishlistSlice'
+import { selectLoggedInUser } from '../../auth/AuthSlice'
+import { addToCartAsync, selectCartItems } from '../../cart/CartSlice'
 import { formatNPR } from '../../../utils/currency'
 
-export const ProductCard = ({id,title,price,thumbnail,brand,stockQuantity,handleAddRemoveFromWishlist,isWishlistCard,isAdminCard}) => {
+const INK = '#000000'
+const ACCENT = '#DB4444'
+const MIST = '#F5F5F5'
+const LINE = '#E6E6E6'
+const MUTED = '#7D7D7D'
 
+/**
+ * A product tile.
+ *
+ * Sizing is left to the grid that contains it rather than set from a stack of
+ * breakpoint queries, which is what previously made rows ragged. The card fills
+ * its column, so every tile in a row ends up the same height.
+ */
+export const ProductCard = ({
+  id, title, price, thumbnail, brand, stockQuantity, discountPercentage,
+  handleAddRemoveFromWishlist, isWishlistCard, isAdminCard,
+}) => {
+  const navigate = useNavigate()
+  const wishlistItems = useSelector(selectWishlistItems)
+  const loggedInUser = useSelector(selectLoggedInUser)
+  const cartItems = useSelector(selectCartItems)
+  const dispatch = useDispatch()
 
-    const navigate=useNavigate()
-    const wishlistItems=useSelector(selectWishlistItems)
-    const loggedInUser=useSelector(selectLoggedInUser)
-    const cartItems=useSelector(selectCartItems)
-    const dispatch=useDispatch()
-    let isProductAlreadyinWishlist=-1
+  const inWishlist = wishlistItems.some((item) => item.product?._id === id)
+  const inCart = cartItems.some((item) => item.product?._id === id)
 
+  const discount = Math.round(Number(discountPercentage) || 0)
+  // The stored price is what the customer pays; the "was" price is derived.
+  const wasPrice = discount > 0 ? Math.round(price / (1 - discount / 100)) : null
 
-    const theme=useTheme()
-    const is1410=useMediaQuery(theme.breakpoints.down(1410))
-    const is932=useMediaQuery(theme.breakpoints.down(932))
-    const is752=useMediaQuery(theme.breakpoints.down(752))
-    const is500=useMediaQuery(theme.breakpoints.down(500))
-    const is608=useMediaQuery(theme.breakpoints.down(608))
-    const is488=useMediaQuery(theme.breakpoints.down(488))
-    const is408=useMediaQuery(theme.breakpoints.down(408))
+  const outOfStock = stockQuantity === 0
+  const lowStock = stockQuantity > 0 && stockQuantity <= 10
 
-    isProductAlreadyinWishlist=wishlistItems.some((item)=>item.product._id===id)
-
-    const isProductAlreadyInCart=cartItems.some((item)=>item.product._id===id)
-
-    const handleAddToCart=async(e)=>{
-        e.stopPropagation()
-        const data={user:loggedInUser?._id,product:id}
-        dispatch(addToCartAsync(data))
-    }
-
+  const addToCart = (e) => {
+    e.stopPropagation()
+    dispatch(addToCartAsync({ user: loggedInUser?._id, product: id }))
+  }
 
   return (
-    <>
+    <Stack
+      onClick={() => navigate(`/product-details/${id}`)}
+      sx={{
+        position: 'relative',
+        height: '100%',
+        cursor: 'pointer',
+        bgcolor: '#fff',
+        border: `1px solid ${LINE}`,
+        borderRadius: '4px',
+        overflow: 'hidden',
+        transition: 'border-color .18s ease',
+        '&:hover': { borderColor: INK },
+        '&:hover .mission-img': { transform: 'scale(1.04)' },
+        '&:hover .mission-buy': { opacity: 1, transform: 'translateY(0)' },
+      }}
+    >
+      {/* Image well */}
+      <Box sx={{ position: 'relative', bgcolor: MIST, aspectRatio: '1 / 1', overflow: 'hidden' }}>
+        <Box
+          component="img"
+          className="mission-img"
+          src={thumbnail}
+          alt={title}
+          loading="lazy"
+          sx={{
+            width: '100%', height: '100%', objectFit: 'contain',
+            p: 2.5, transition: 'transform .3s ease',
+            '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
+          }}
+        />
 
-    {
+        {discount > 0 && (
+          <Box sx={{
+            position: 'absolute', top: 10, left: 10, bgcolor: ACCENT, color: '#fff',
+            fontSize: 12, fontWeight: 600, px: 1, py: '2px', borderRadius: '3px',
+          }}>
+            -{discount}%
+          </Box>
+        )}
 
-    isProductAlreadyinWishlist!==-1 ?
-    <Stack component={isAdminCard?"":isWishlistCard?"":is408?'':Paper} mt={is408?2:0} elevation={1} p={2} width={is408?'auto':is488?"200px":is608?"240px":is752?"300px":is932?'240px':is1410?'300px':'340px'} sx={{cursor:"pointer"}} onClick={()=>navigate(`/product-details/${id}`)}>
+        {outOfStock && (
+          <Box sx={{
+            position: 'absolute', inset: 0, bgcolor: 'rgba(255,255,255,.72)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Typography sx={{ fontWeight: 600, color: INK, fontSize: 14 }}>Out of stock</Typography>
+          </Box>
+        )}
 
-        {/* image display */}
-        <Stack>
-            <img width={'100%'} style={{aspectRatio:1/1,objectFit:"contain"}} height={'100%'}  src={thumbnail} alt={`${title} photo unavailable`} />
+        {!isAdminCard && (
+          <Tooltip title={inWishlist ? 'Remove from wishlist' : 'Save for later'}>
+            <IconButton
+              onClick={(e) => { e.stopPropagation(); handleAddRemoveFromWishlist?.(e, id) }}
+              aria-label={inWishlist ? `Remove ${title} from wishlist` : `Save ${title} for later`}
+              sx={{
+                position: 'absolute', top: 6, right: 6, bgcolor: '#fff',
+                width: 34, height: 34, border: `1px solid ${LINE}`,
+                '&:hover': { bgcolor: '#fff', borderColor: INK },
+              }}
+            >
+              {inWishlist
+                ? <Favorite sx={{ fontSize: 18, color: ACCENT }} />
+                : <FavoriteBorder sx={{ fontSize: 18, color: INK }} />}
+            </IconButton>
+          </Tooltip>
+        )}
+
+        {/* Buy action rides on the image well; always visible on touch. */}
+        {!isWishlistCard && !isAdminCard && !outOfStock && (
+          <Box
+            className="mission-buy"
+            sx={{
+              position: 'absolute', left: 0, right: 0, bottom: 0,
+              opacity: { xs: 1, md: 0 }, transform: { xs: 'none', md: 'translateY(100%)' },
+              transition: 'opacity .18s ease, transform .18s ease',
+              '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
+            }}
+          >
+            <Box
+              component="button"
+              onClick={addToCart}
+              disabled={inCart}
+              aria-label={inCart ? `${title} is in your bag` : `Add ${title} to bag`}
+              sx={{
+                width: '100%', border: 'none', cursor: inCart ? 'default' : 'pointer',
+                bgcolor: inCart ? '#2E7D32' : INK, color: '#fff',
+                fontFamily: 'inherit', fontSize: 13, fontWeight: 500, py: 1.25,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: .75,
+                '&:hover': { bgcolor: inCart ? '#2E7D32' : ACCENT },
+              }}
+            >
+              {inCart
+                ? <><CheckIcon sx={{ fontSize: 16 }} /> In your bag</>
+                : <><ShoppingBagOutlinedIcon sx={{ fontSize: 16 }} /> Add to bag</>}
+            </Box>
+          </Box>
+        )}
+      </Box>
+
+      {/* Detail */}
+      <Stack sx={{ p: 1.75, gap: .5, flexGrow: 1 }}>
+        <Typography sx={{ fontSize: 12, color: MUTED, lineHeight: 1.2 }}>{brand}</Typography>
+
+        <Typography
+          title={title}
+          sx={{
+            fontSize: 14, fontWeight: 500, color: INK, lineHeight: 1.35,
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+            overflow: 'hidden', minHeight: '2.7em',
+          }}
+        >
+          {title}
+        </Typography>
+
+        <Stack direction="row" alignItems="baseline" gap={1} sx={{ mt: 'auto', pt: .5 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: ACCENT }}>
+            {formatNPR(price)}
+          </Typography>
+          {wasPrice && (
+            <Typography sx={{ fontSize: 12.5, color: MUTED, textDecoration: 'line-through' }}>
+              {formatNPR(wasPrice)}
+            </Typography>
+          )}
         </Stack>
 
-        {/* lower section */}
-        <Stack flex={2} justifyContent={'flex-end'} spacing={1} rowGap={2}>
-
-            <Stack>
-                <Stack flexDirection={'row'} alignItems={'center'} justifyContent={'space-between'}>
-                    <Typography variant='h6' fontWeight={400}>{title}</Typography>
-                    {
-                    !isAdminCard && 
-                    <motion.div whileHover={{scale:1.3,y:-10,zIndex:100}} whileTap={{scale:1}} transition={{duration:.4,type:"spring"}}>
-                        <Checkbox onClick={(e)=>e.stopPropagation()} checked={isProductAlreadyinWishlist} onChange={(e)=>handleAddRemoveFromWishlist(e,id)} icon={<FavoriteBorder />} checkedIcon={<Favorite sx={{color:'red'}} />} />
-                    </motion.div>
-                    }
-                </Stack>
-                <Typography color={"text.secondary"}>{brand}</Typography>
-            </Stack>
-
-            <Stack sx={{flexDirection:"row",justifyContent:"space-between",alignItems:"center"}}>
-                <Typography>{formatNPR(price)}</Typography>
-                {
-                    !isWishlistCard? isProductAlreadyInCart?
-                    'Added to cart'
-                    :
-                    !isAdminCard &&
-                    <motion.button  whileHover={{scale:1.030}} whileTap={{scale:1}} onClick={(e)=>handleAddToCart(e)} style={{padding:"10px 15px",borderRadius:"3px",outline:"none",border:"none",cursor:"pointer",backgroundColor:"black",color:"white",fontSize:is408?'.9rem':is488?'.7rem':is500?'.8rem':'.9rem'}}>
-                        <div style={{display:"flex",alignItems:"center",columnGap:".5rem"}}>
-                            <p>Add To Cart</p>
-                        </div>
-                    </motion.button>
-                    :''
-                }
-                
-            </Stack>
-            {
-                stockQuantity<=20 && (
-                    <FormHelperText sx={{fontSize:".9rem"}} error>{stockQuantity===1?"Only 1 stock is left":"Only few are left"}</FormHelperText>
-                )
-            }
-        </Stack>
-    </Stack> 
-    :''
-    
-    
-    }
-    
-    </>
+        {lowStock && (
+          <Typography sx={{ fontSize: 11.5, color: ACCENT }}>
+            {stockQuantity === 1 ? 'Last one left' : `Only ${stockQuantity} left`}
+          </Typography>
+        )}
+      </Stack>
+    </Stack>
   )
 }
