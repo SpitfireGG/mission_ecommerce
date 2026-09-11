@@ -9,6 +9,9 @@ const Coupon=require('../models/Coupon')
 const Audit=require('../models/Audit')
 const {sanitizeUser}=require('../utils/SanitizeUser')
 const {generateToken}=require('../utils/GenerateToken')
+// Products are soft-deleted so past orders still resolve; hide them from
+// the console's list and its figures.
+const LIVE={isDeleted:{$ne:true}}
 const logAudit=async(actor,action,entity,entityId,meta)=>{ try{ await new Audit({actor,action,entity,entityId:String(entityId||''),meta}).save()}catch{}}
 exports.login=async(req,res)=>{
   try{
@@ -32,20 +35,20 @@ exports.login=async(req,res)=>{
 exports.stats=async(req,res)=>{
   try{
     const [totalOrders,totalProducts,totalCategories,paidOrders,pendingOrders,lowStock] = await Promise.all([
-      Order.countDocuments(), Product.countDocuments(), Category.countDocuments(),
+      Order.countDocuments(), Product.countDocuments(LIVE), Category.countDocuments(),
       Order.countDocuments({paymentStatus:'paid'}), Order.countDocuments({status:'Pending'}),
-      Product.countDocuments({stockQuantity:{$lte:5}})
+      Product.countDocuments({...LIVE,stockQuantity:{$lte:5}})
     ])
     const invoices=await Invoice.find({paymentStatus:'paid'})
     const totalRevenue=invoices.reduce((s,i)=>s+i.total,0) || (await Order.aggregate([{$match:{paymentStatus:'paid'}},{$group:{_id:null,total:{$sum:"$total"}}}]))[0]?.total || 0
     const last7=[]
     for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); const start=new Date(d.setHours(0,0,0,0)); const end=new Date(d.setHours(23,59,59,999)); const count=await Order.countDocuments({createdAt:{$gte:start,$lte:end}}); last7.push({day:d.toLocaleDateString('en-US',{weekday:'short'}),count})}
     const cats=await Category.find()
-    const prods=await Product.find().populate('category')
+    const prods=await Product.find(LIVE).populate('category')
     const mixMap={}
     prods.forEach(p=>{ const n=p.category?.name||'Uncategorized'; mixMap[n]=(mixMap[n]||0)+1})
     const mix=Object.entries(mixMap).map(([name,count])=>({name,count}))
-    const lowStockProducts=await Product.find({stockQuantity:{$lte:5}}).limit(5).select('title stockQuantity')
+    const lowStockProducts=await Product.find({...LIVE,stockQuantity:{$lte:5}}).limit(5).select('title stockQuantity')
     const unpaid=await Order.countDocuments({paymentStatus:{$ne:'paid'}})
     const avgOrder=paidOrders? totalRevenue/paidOrders : 0
     res.json({totalOrders,totalProducts,categories:Object.keys(mixMap).length,totalCategories,paidOrders,pendingOrders,lowStock,lowStockProducts:lowStockProducts.map(p=>({title:p.title,stock:p.stockQuantity})),totalRevenue,unpaid,avgOrder,trend:last7,mix})
@@ -54,7 +57,7 @@ exports.stats=async(req,res)=>{
 const mapProduct=p=>({id:String(p._id),title:p.title,category:p.category?.name||String(p.category),slug:p.title.toLowerCase().replace(/[^a-z0-9]+/g,'-'),price:p.price,compareAt:p.price?Math.round(p.price*1.2):null,stock:p.stockQuantity,rating:4.5,images:p.images||[p.thumbnail],sizes:null,description:p.description,thumbnail:p.thumbnail,brand:p.brand})
 exports.products=async(req,res)=>{
   try{
-    const prods=await Product.find().populate('category').populate('brand').sort({createdAt:-1})
+    const prods=await Product.find(LIVE).populate('category').populate('brand').sort({createdAt:-1})
     res.json(prods.map(mapProduct))
   }catch(e){ console.log(e); res.status(500).json({error:'Failed'})}
 }

@@ -66,7 +66,6 @@ export const Navbar=({isProductList=false})=> {
     {name:"Home",to:"/"},
     {name:'Profile',to:"/profile"},
     {name:'My orders',to:"/orders"},
-    {name:'Logout',to:"/logout"},
   ];
   return (
     <AppBar position="sticky" sx={{backgroundColor:"white",color:"text.primary",boxShadow:"0 1px 8px rgba(0,0,0,0.08)"}}>

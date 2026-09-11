@@ -14,7 +14,7 @@ export const Logout = () => {
 
     useEffect(()=>{
         if(!loggedInUser){
-            navigate("/login")
+            navigate("/")
         }
     },[loggedInUser])
 

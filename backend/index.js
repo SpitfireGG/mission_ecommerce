@@ -27,9 +27,10 @@ const server=express()
 connectToDB()
 
 
-const allowedOrigins=[process.env.ORIGIN,process.env.ADMIN_ORIGIN,"http://localhost:3000","http://localhost:3001"].filter(Boolean)
+// Storefront on 3000; admin console on 3003 (3001 kept for older setups).
+const allowedOrigins=[process.env.ORIGIN,process.env.ADMIN_ORIGIN,"http://localhost:3000","http://localhost:3001","http://localhost:3003"].filter(Boolean)
 // middlewares
-server.use(cors({origin:function(origin,cb){if(!origin || allowedOrigins.includes(origin)) return cb(null,true); return cb(new Error('CORS not allowed by server: '+origin))},credentials:true,exposedHeaders:['X-Total-Count'],methods:['GET','POST','PATCH','DELETE','OPTIONS']}))
+server.use(cors({origin:function(origin,cb){if(!origin || allowedOrigins.includes(origin)) return cb(null,true); return cb(new Error('CORS not allowed by server: '+origin))},credentials:true,exposedHeaders:['X-Total-Count'],methods:['GET','POST','PUT','PATCH','DELETE','OPTIONS']}))
 server.use(express.json({limit:'10mb'}))
 server.use(express.urlencoded({extended:true,limit:'10mb'}))
 server.use(cookieParser())

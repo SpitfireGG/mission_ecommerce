@@ -53,7 +53,13 @@ export const checkAuth=async(cred)=>{
         const res=await axiosi.get("/auth/check-auth")
         return res.data
     } catch (error) {
-        throw error.response.data
+        // Shoppers don't need an account: with no session, start a guest one.
+        try {
+            const res=await axiosi.post("/auth/guest")
+            return res.data
+        } catch (guestError) {
+            throw guestError.response?.data || error.response?.data
+        }
     }
 }
 export const logout=async()=>{

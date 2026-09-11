@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const bcrypt=require('bcryptjs');
+const crypto=require('crypto');
 const { sendMail } = require("../utils/Emails");
 const { generateOTP } = require("../utils/GenerateOtp");
 const Otp = require("../models/OTP");
@@ -256,5 +257,40 @@ exports.checkAuth=async(req,res)=>{
     } catch (error) {
         console.log(error);
         res.sendStatus(500)
+    }
+}
+
+// The storefront doesn't make shoppers create an account. When there is no
+// session it asks for this one: a single shared, verified customer account.
+const GUEST_EMAIL='guest@missionshop.com.np'
+
+exports.guest=async(req,res)=>{
+    try {
+        let guest=await User.findOne({email:GUEST_EMAIL})
+
+        if(!guest){
+            // Random password nobody holds, so the account can only be reached here.
+            const password=await bcrypt.hash(crypto.randomBytes(24).toString('hex'),10)
+            guest=await new User({name:'Guest shopper',email:GUEST_EMAIL,password,isVerified:true,isAdmin:false}).save()
+        }
+
+        // This route must never hand out an administrator session.
+        if(guest.isAdmin){
+            return res.status(403).json({message:'Guest account is misconfigured'})
+        }
+
+        const secureInfo=sanitizeUser(guest)
+        const token=generateToken(secureInfo)
+
+        res.cookie('token',token,{
+            sameSite:process.env.PRODUCTION==='true'?"None":'Lax',
+            maxAge:parseInt(process.env.COOKIE_EXPIRATION_DAYS||'30')*24*60*60*1000,
+            httpOnly:true,
+            secure:process.env.PRODUCTION==='true'
+        })
+        return res.status(200).json(secureInfo)
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({message:'Could not start a guest session, please try again later'})
     }
 }
