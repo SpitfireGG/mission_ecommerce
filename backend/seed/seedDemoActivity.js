@@ -76,12 +76,16 @@ async function main() {
       for (let i = 0; i < between(1, 3); i++) {
         const product = pick(products)
         const quantity = between(1, 2)
-        lines.push({ product: product._id, quantity })
+        // Match what checkout stores: a snapshot of the product, so the order
+        // keeps the price actually charged even if the catalogue changes.
+        lines.push({
+          product: { _id: product._id, title: product.title, price: product.price, thumbnail: product.thumbnail },
+          quantity,
+        })
       }
 
       const subtotal = lines.reduce((sum, l) => {
-        const p = products.find((x) => String(x._id) === String(l.product))
-        return sum + p.price * l.quantity
+        return sum + l.product.price * l.quantity
       }, 0)
 
       const total = subtotal + DELIVERY + Math.round(subtotal * VAT_RATE)

@@ -3,8 +3,7 @@
  *
  * Exercises the flows a demo touches - catalogue, guest shopping, admin
  * access and payments - against a running API, and cleans up after itself.
- * (The test product is soft-deleted like any other, so it is hidden from the
- * shop and the console.) Run it after starting the database and the API:
+ * Run it after starting the database and the API:
  *
  *   npm run check
  *
@@ -45,7 +44,7 @@ async function main() {
 
   // --- catalogue ------------------------------------------------------------
   await check('catalogue lists products', async () => {
-    const r = await api('/products')
+    const r = await api('/products?user=true')
     must(r.status === 200, `HTTP ${r.status}`)
     const a = list(r.data)
     must(a.length > 0, 'no products')
@@ -54,7 +53,7 @@ async function main() {
   })
 
   await check('product images load', async () => {
-    const a = list((await api('/products?limit=4')).data)
+    const a = list((await api('/products?user=true&limit=4')).data)
     for (const p of a) {
       const img = await fetch(p.thumbnail, { method: 'HEAD' })
       must(img.ok, `${p.title}: image HTTP ${img.status}`)
@@ -96,7 +95,7 @@ async function main() {
   })
 
   await check('filter by category', async () => {
-    const r = await api(`/products?category=${categoryId}`)
+    const r = await api(`/products?user=true&category=${categoryId}`)
     must(r.status === 200, `HTTP ${r.status}`)
     return `${list(r.data).length} in first category`
   })
@@ -207,6 +206,45 @@ async function main() {
     })
   }
 
+  // --- orders: what the console shows and edits ------------------------------
+  let order
+  await check('admin order lines name their products', async () => {
+    const orders = list((await api('/api/admin/orders', { headers: auth() })).data)
+    must(orders.length, 'no orders')
+    order = orders[0]
+    must(order.lines.every((l) => l.title && l.lineTotal > 0), 'unnamed or unpriced lines')
+    return `${order.lines.length} line(s)`
+  })
+
+  await check('admin order breakdown adds up', async () => {
+    const o = (await api(`/api/admin/orders/${order.transactionUuid}`, { headers: auth() })).data
+    must(o.subtotal + o.deliveryCharge + o.vat === o.totalAmount,
+      `${o.subtotal} + ${o.deliveryCharge} + ${o.vat} != ${o.totalAmount}`)
+    return `Rs. ${o.subtotal} + ${o.deliveryCharge} + ${o.vat} VAT = Rs. ${o.totalAmount}`
+  })
+
+  await check('admin updates an order status', async () => {
+    const original = order.status
+    let r = await api(`/api/admin/orders/${order.transactionUuid}`, { method: 'PATCH', headers: auth(), body: { status: 'Dispatched' } })
+    must(r.status === 200 && r.data.order.status === 'Dispatched', `HTTP ${r.status}`)
+    r = await api(`/api/admin/orders/${order.transactionUuid}`, { method: 'PATCH', headers: auth(), body: { status: original } })
+    must(r.status === 200, `restore: HTTP ${r.status}`)
+    return 'set and restored'
+  })
+
+  await check('admin refuses an unknown order status', async () => {
+    const r = await api(`/api/admin/orders/${order.transactionUuid}`, { method: 'PATCH', headers: auth(), body: { status: 'PROCESSING' } })
+    must(r.status === 400, `expected 400, got ${r.status}`)
+    return '400, nothing stored'
+  })
+
+  await check('admin exports the sales report as CSV', async () => {
+    const res = await fetch(BASE + '/api/admin/reports/sales.csv', { headers: auth() })
+    const text = await res.text()
+    must(res.status === 200 && text.startsWith('orderNumber'), `HTTP ${res.status}`)
+    return `${text.trim().split('\n').length - 1} rows`
+  })
+
   // --- browsers: the API must accept requests from both apps ---------------
   for (const [origin, method] of [[STOREFRONT, 'POST'], [ADMIN_CONSOLE, 'POST'], [ADMIN_CONSOLE, 'PUT']]) {
     await check(`browser access from ${origin} (${method})`, async () => {
@@ -228,6 +266,16 @@ async function main() {
     const saved = list((await api(`/wishlist/user/${guest._id}`, { cookie: guestCookie })).data)
     for (const item of saved) await api(`/wishlist/${item._id}`, { method: 'DELETE', cookie: guestCookie })
   }
+
+  // Deleting through the API is a soft delete, which would leave the test
+  // product behind as a hidden row on every run. Remove it for good.
+  try {
+    require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') })
+    const mongoose = require('mongoose')
+    await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 3000 })
+    await mongoose.connection.db.collection('products').deleteMany({ title: '__smoke-test product' })
+    await mongoose.connection.close()
+  } catch { /* cleanup is best-effort; the row is hidden either way */ }
 
   // --- report ---------------------------------------------------------------
   console.log('\n  Mission Shop - API smoke test\n')

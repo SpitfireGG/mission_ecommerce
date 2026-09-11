@@ -54,7 +54,7 @@ export const ProductList = () => {
     const [deals,setDeals]=useState([])
     useEffect(()=>{
         let live=true
-        axiosi.get('/products?sort=discountPercentage&order=desc&limit=6')
+        axiosi.get('/products?sort=discountPercentage&order=desc&limit=6&user=true')
             .then(r=>{ if(live) setDeals(Array.isArray(r.data)?r.data:(r.data?.data||[])) })
             .catch(()=>{})
         return ()=>{live=false}

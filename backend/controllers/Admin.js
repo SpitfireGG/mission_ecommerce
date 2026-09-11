@@ -74,7 +74,8 @@ exports.createProduct=async(req,res)=>{
     if(req.files && req.files['thumbnail']) thumbnail=`${req.protocol}://${req.get('host')}/uploads/products/${req.files['thumbnail'][0].filename}`
     if(req.files && req.files['images']) images=req.files['images'].map(f=>`${req.protocol}://${req.get('host')}/uploads/products/${f.filename}`)
     if(!images.length && thumbnail) images=[thumbnail]
-    const p=await new Product({title:b.title,description:b.description||b.title,price:Number(b.price),stockQuantity:Number(b.stock||b.stockQuantity||0),category:cat?._id,brand:brand._id,thumbnail:thumbnail||'https://via.placeholder.com/400',images:images.length?images:[thumbnail],discountPercentage:0}).save()
+    if(!thumbnail) return res.status(400).json({error:'Add at least one image URL for the product'})
+    const p=await new Product({title:b.title,description:b.description||b.title,price:Number(b.price),stockQuantity:Number(b.stock||b.stockQuantity||0),category:cat?._id,brand:brand._id,thumbnail,images:images.length?images:[thumbnail],discountPercentage:0}).save()
     await logAudit(req.headers['x-admin-user']||'admin','CREATE','product',p._id,b)
     res.status(201).json(mapProduct(await p.populate('category').then(x=>x.populate('brand'))))
   }catch(e){ console.log(e); res.status(500).json({error:e.message})}
@@ -94,7 +95,7 @@ exports.updateProduct=async(req,res)=>{
     if(b.stockQuantity!==undefined) upd.stockQuantity=Number(b.stockQuantity)
     if(cat) upd.category=cat._id
     if(brand) upd.brand=brand._id
-    if(b.images) upd.images=b.images
+    if(b.images){ upd.images=b.images; if(!b.thumbnail && b.images.length) upd.thumbnail=b.images[0] }
     if(b.thumbnail) upd.thumbnail=b.thumbnail
     const p=await Product.findByIdAndUpdate(req.params.id,upd,{new:true}).populate('category').populate('brand')
     await logAudit(req.headers['x-admin-user']||'admin','UPDATE','product',req.params.id,b)
@@ -108,33 +109,86 @@ exports.deleteProduct=async(req,res)=>{
     res.json({ok:true})
   }catch(e){ res.status(500).json({error:'Delete failed'})}
 }
+// The fulfilment workflow orders actually use (see models/Order.js).
+const ORDER_STATUSES=['Pending','Dispatched','Out for delivery','Cancelled']
+const DELIVERY_CHARGE=100
+const VAT_RATE=0.13
+
+// Order items are a Mixed array: checkout embeds a snapshot of each product
+// (so the price is the one actually charged), while older records may hold
+// only a product id. Fill those in from the catalogue before mapping.
+const attachProducts=async(orders)=>{
+  const ids=new Set()
+  orders.forEach(o=>(o.item||[]).forEach(it=>{ if(it.product && !it.product.title) ids.add(String(it.product)) }))
+  if(!ids.size) return orders
+  const found=await Product.find({_id:{$in:[...ids]}}).select('title price thumbnail')
+  const byId=new Map(found.map(p=>[String(p._id),p]))
+  orders.forEach(o=>(o.item||[]).forEach(it=>{ if(it.product && !it.product.title) it.product=byId.get(String(it.product))||null }))
+  return orders
+}
+
 const mapOrder=o=>{
   const cust=o.user && typeof o.user==='object'? {name:o.user.name,email:o.user.email,phone:o.billingDetails?.phone||o.address?.[0]?.phoneNumber||'',address:o.billingDetails?.street||o.address?.[0]?.street||'',city:o.billingDetails?.city||o.address?.[0]?.city||'',state:o.billingDetails?.state||o.address?.[0]?.state||'',postcode:String(o.billingDetails?.postalCode||o.address?.[0]?.postalCode||'')} : {name:o.billingDetails?.fullName||'Guest',email:o.billingDetails?.email||'',phone:o.billingDetails?.phone||'',address:o.billingDetails?.street||'',city:o.billingDetails?.city||''}
-  return {transactionUuid:String(o._id),orderNumber:String(o._id).slice(-6).toUpperCase(),customer:cust,totalAmount:o.total,subtotal:o.total-10.55,deliveryCharge:5.55,paymentStatus:(o.paymentStatus==='paid'?'PAID':(o.paymentStatus||'PENDING').toUpperCase()),method:o.paymentMode, status:(o.status||'Pending').toUpperCase(),createdAt:o.createdAt,paymentRef:o.payment?.toString()||'',gatewayStatus:o.paymentStatus,couponCode:null,discountAmount:0,customerIp:'',lines:(o.item||[]).map(it=>({title:it.product?.title||it.title||'Product',qty:it.quantity,lineTotal:(it.product?.price||0)*it.quantity,size:null}))}
+  // Items reference products; the product is populated by the caller.
+  const lines=(o.item||[]).map(it=>{
+    const unitPrice=it.product?.price||0
+    return {title:it.product?.title||'Product no longer available',qty:it.quantity,unitPrice,lineTotal:unitPrice*it.quantity,size:null}
+  })
+  const subtotal=lines.reduce((sum,l)=>sum+l.lineTotal,0)
+  return {
+    transactionUuid:String(o._id),
+    orderNumber:String(o._id).slice(-6).toUpperCase(),
+    customer:cust,
+    totalAmount:o.total,
+    subtotal,
+    deliveryCharge:DELIVERY_CHARGE,
+    vat:Math.round(subtotal*VAT_RATE),
+    paymentStatus:(o.paymentStatus==='paid'?'PAID':(o.paymentStatus||'PENDING').toUpperCase()),
+    method:o.paymentMode,
+    status:o.status||'Pending',
+    createdAt:o.createdAt,
+    paymentRef:o.payment?.toString()||'',
+    gatewayStatus:o.paymentStatus,
+    couponCode:null,discountAmount:0,customerIp:'',
+    lines,
+  }
 }
 exports.orders=async(req,res)=>{
   try{
-    const orders=await Order.find().populate('user','name email').populate('payment').sort({createdAt:-1}).limit(200)
+    const orders=await Order.find().populate('user','name email').populate('payment').sort({createdAt:-1}).limit(200).lean()
+    await attachProducts(orders)
     res.json(orders.map(mapOrder))
   }catch(e){ console.log(e); res.status(500).json({error:'Failed'})}
 }
 exports.orderById=async(req,res)=>{
   try{
-    const o=await Order.findById(req.params.uuid).populate('user','name email')
+    const o=await Order.findById(req.params.uuid).populate('user','name email').lean()
     if(!o) return res.status(404).json({error:'Not found'})
+    await attachProducts([o])
     res.json(mapOrder(o))
   }catch(e){ res.status(500).json({error:'Failed'})}
 }
 exports.updateOrder=async(req,res)=>{
   try{
-    const o=await Order.findByIdAndUpdate(req.params.uuid,{status:req.body.status},{new:true})
+    // findByIdAndUpdate skips schema validation by default, so an unknown
+    // status would be written straight into the order. Refuse it here.
+    if(!ORDER_STATUSES.includes(req.body.status)){
+      return res.status(400).json({error:`Status must be one of: ${ORDER_STATUSES.join(', ')}`})
+    }
+    const o=await Order.findByIdAndUpdate(req.params.uuid,{status:req.body.status},{new:true,runValidators:true}).lean()
+    if(!o) return res.status(404).json({error:'Order not found'})
+    await attachProducts([o])
     await logAudit(req.headers['x-admin-user']||'admin','UPDATE_ORDER','order',req.params.uuid,req.body)
     res.json({ok:true,order:o?mapOrder(o):null})
   }catch(e){ res.status(500).json({error:'Failed'})}
 }
 exports.coupons=async(req,res)=>{ try{ const c=await Coupon.find().sort({createdAt:-1}); res.json(c.map(x=>({id:String(x._id),code:x.code,type:x.type,value:x.value,minAmount:x.minAmount,active:x.active})))}catch(e){res.json([])}}
 exports.createCoupon=async(req,res)=>{
-  try{ const c=await new Coupon({code:req.body.code.toUpperCase(),type:req.body.type,value:Number(req.body.value),minAmount:Number(req.body.minAmount||0),active:req.body.active!==false}).save(); await logAudit(req.headers['x-admin-user']||'admin','CREATE','coupon',c._id,req.body); res.status(201).json({id:String(c._id),code:c.code,type:c.type,value:c.value,minAmount:c.minAmount,active:c.active})}catch(e){ res.status(400).json({error:e.message})}
+  try{ const c=await new Coupon({code:req.body.code.toUpperCase(),type:req.body.type,value:Number(req.body.value),minAmount:Number(req.body.minAmount||0),active:req.body.active!==false}).save(); await logAudit(req.headers['x-admin-user']||'admin','CREATE','coupon',c._id,req.body); res.status(201).json({id:String(c._id),code:c.code,type:c.type,value:c.value,minAmount:c.minAmount,active:c.active})}catch(e){
+    // Duplicate codes arrive as a raw E11000 error; say it in plain words.
+    if(e.code===11000) return res.status(409).json({error:`A coupon with the code ${String(req.body.code||'').toUpperCase()} already exists`})
+    res.status(400).json({error:e.message})
+  }
 }
 exports.audit=async(req,res)=>{ try{ const a=await Audit.find().sort({createdAt:-1}).limit(100); res.json(a)}catch{ res.json([])}}
 exports.reports=async(req,res)=>{
